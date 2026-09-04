@@ -13,6 +13,19 @@ glm::vec2 SeparationRule::computeForce(const std::vector<BoidView>& neighborhood
   // begin solution
 
 
+  glm::vec2 direction;
+  float distance;
+
+  // calculate the inverse force and add it to the separating force, then average 
+  for (BoidView other : neighborhood) {
+    direction = boid.position - other.position; // this gets the direction from this boid pointing to the other boid
+    distance = length(direction);
+    if (distance < 0.0001f) { // prevent outright diving by anything close to 0
+      distance = 0.0001f;
+    }
+    separatingForce += normalize(direction) * (desiredMinimalDistance / distance);  // the closer the birds are, the faster they should move away.
+  }
+
   // end solution
 
   return separatingForce;

@@ -9,8 +9,21 @@ glm::vec2 CohesionRule::computeForce(const std::vector<BoidView>& neighborhood, 
 
   // begin solution
 
+  if (neighborhood.size() == 0) return boid.velocity;
+
+  glm::vec2 point(0.f);
+
+  // calculate the average position to be in by averaging all the non main boid positions
+  for (BoidView other : neighborhood) {
+    point += other.position;
+  }
+
+  point /= neighborhood.size();
+  // then calculate the force from the boid to that averaged position
+  cohesionForce = point - boid.position;
+
 
   // end solution
 
-  return cohesionForce;
+  return normalize(cohesionForce);
 }
