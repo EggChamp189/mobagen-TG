@@ -28,7 +28,7 @@ glm::vec2 SeparationRule::computeForce(const std::vector<BoidView>& neighborhood
 
   // end solution
 
-  return separatingForce;
+  return separatingForce ;
 }
 
 bool SeparationRule::drawImguiRuleExtra() {
