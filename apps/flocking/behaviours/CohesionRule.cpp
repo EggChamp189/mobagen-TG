@@ -9,7 +9,7 @@ glm::vec2 CohesionRule::computeForce(const std::vector<BoidView>& neighborhood, 
 
   // begin solution
 
-  if (neighborhood.size() == 0) return boid.velocity;
+  if (neighborhood.size() == 0) return cohesionForce;
 
   glm::vec2 point(0.f);
 

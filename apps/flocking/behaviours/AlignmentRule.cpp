@@ -6,9 +6,7 @@ glm::vec2 AlignmentRule::computeForce(const std::vector<BoidView>& neighborhood,
   // glm::vec2 can be divided by a float, which will divide each component of the vector by that float.
 
   // begin solution
-  if (neighborhood.size() == 0) {
-    return boid.velocity;
-  }
+  if (neighborhood.size() == 0) return averageVelocity;
 
   for (BoidView other : neighborhood) {
     averageVelocity += other.velocity;

@@ -9,7 +9,22 @@ glm::vec2 MouseInfluenceRule::computeForce(const std::vector<BoidView>& neighbor
   // glm::length(vec) returns the length of a vector
 
   // begin solution
+  if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) return force;
 
+  glm::vec2 direction(ImGui::GetIO().MousePos.x, ImGui::GetIO().MousePos.y);
+  float distance;
+
+  // calculate the inverse force and add it to the separating force, then average
+  
+  if (isRepulsive) direction = boid.position - direction;  // this gets the direction from this boid pointing to the mouse position
+  else direction = direction - boid.position;  // this gets the direction from the mouse position pointing to this boid
+
+  distance = length(direction);
+
+  if (distance < 0.0001f) {  // prevent outright diving by anything close to 0
+    distance = 0.0001f;
+  }
+  force = normalize(direction) * (10000.0f / distance);  // the closer the birds are, the faster they should move away.
   // end solution
 
   return force;

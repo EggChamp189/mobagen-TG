@@ -9,7 +9,11 @@ glm::vec2 BoundedAreaRule::computeForce(const std::vector<BoidView>& neighborhoo
   // desiredDistance is the distance from the borders that the boids should try to maintain. 
 
   // begin solution
-
+  // check if the boid is over a specific boundary and directly add force to move it away otherwise (maybe do inverse? that could lead to them not respecting the boundary though)
+  if (boid.position.x < desiredDistance) force += glm::vec2(250,0);
+  if (boid.position.x > displaySize.x - desiredDistance) force -= glm::vec2(250, 0);
+  if (boid.position.y < desiredDistance) force += glm::vec2(0, 250);
+  if (boid.position.y > displaySize.y - desiredDistance) force -= glm::vec2(0, 250);
   // end solution
 
   return force;
