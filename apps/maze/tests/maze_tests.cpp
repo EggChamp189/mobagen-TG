@@ -125,7 +125,6 @@ std::string runMazeGeneration(const std::string& input) {
   SeededRandom::setIndex(static_cast<uint8_t>(index));
   while (generator.Step(&world)) {
   }
-
   return renderMaze(world);
 }
 
@@ -171,10 +170,12 @@ bool fixturePasses(const FixtureFiles& fixture) {
     // note: no trim() here - the maze's leading space is significant; normalizeSpaces
     // inside compareOutputs handles trailing whitespace and empty lines on both sides.
     expectedOutput = normalizeLineEndings(expectedOutput);
+    std::cout << "Expected Output:\n" << expectedOutput << "\n";
 
     std::string actualOutput;
     try {
       actualOutput = runMazeGeneration(input);
+      std::cout << "Actual Output:\n" << actualOutput << "\n\n\n";
     } catch (const std::exception& e) {
       std::cerr << "Exception during maze generation (" << fixture.name << "): " << e.what() << std::endl;
       actualOutput.clear();

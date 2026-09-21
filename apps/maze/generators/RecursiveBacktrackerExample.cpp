@@ -135,7 +135,7 @@ std::vector<Point2D> RecursiveBacktrackerExample::getVisitables(World* w, const 
   std::vector<Point2D> directions = {{x, y - 1}, {x + 1, y}, {x, y + 1}, {x - 1, y}};
 
   // first check the original point is within the bounds
-  if (0 <= x < w->GetWidth() && 0 <= y < w->GetHeight()) {
+  if (0 <= x && x < w->GetWidth() && 0 <= y && y < w->GetHeight()) {
     // loop through the directions
     for (int i = 0; i < 4; i++) {
       // check if the new point with the added direction is within bounds
