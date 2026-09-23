@@ -10,53 +10,94 @@ bool HuntAndKillExample::Step(World* w) {
   // once it gets stuck though, it then transitions into hunt mode, where it scans the entire grid line by line 
   // until it finds an unvisited spot, then continues the killing phase from there. 
   // this repeats until it cannot find a single unvisited space.
-
-  // if the last hunt resulted in no spots found, then end.
-  if (currentSpot.x == INT_MAX && currentSpot.y == INT_MAX) return false;
+  
+  // protect against someone pressing step after it already ended. (I accidentally triggered an error without this since I used an autoclicker lol)
+  if (currentSpot.x == INT_MAX) return false;
 
   // begin with getting visitables, as will always be helpful
   std::vector<Point2D> curVisitables = getVisitables(w, currentSpot);
 
-  // Start by checking if our spot surrounded by filled spots, and if so, start hunting left and wrapping
-  // if this is the case, the last loop should have already marked this spot as visited so I shouldn't need to.
-  if (curVisitables.size() <= 0 && isKillingNotHunting) {
-    currentSpot = randomStartPoint(w); // then go to the next available spot if possible
-    isKillingNotHunting = false; // switch to hunting
+  // all killing code should go in here
+  if (isKillingNotHunting) {
+    // Start by checking if our spot surrounded by filled spots, and if so, start hunting left and wrapping
+    // if this is the case, the last loop should have already marked this spot as visited so I shouldn't need to.
+    if (curVisitables.size() <= 0) {
+      // color in the spot we just jumped from for consistency
+      w->SetNodeColor(w->ToWorldCoords(currentSpot), Color32(1.0f, 0.0f, 0.0f, 1.0f)); 
+      // check if there is a next spot
+      currentSpot = findNewHuntSpot(w); 
+      // if it wasn't possible, just quit
+      if (currentSpot.x == INT_MAX) return false;
+
+      // otherwise, use blue to show that the next spot started by hunting there.
+      w->SetNodeColor(w->ToWorldCoords(currentSpot), Color32(0.0f, 0.0f, 1.0f, 1.0f));
+      isKillingNotHunting = false; // switch to hunting
+      return true;
+    }
+
+    // if we have already been visited
+    // temp variable if found a new spot to move, don't waste a random slot if only 1 unvisited spot returned
+    Point2D newSpot;
+    if (curVisitables.size() >= 2)
+      newSpot = curVisitables[SeededRandom::next() % curVisitables.size()];
+    else
+      newSpot = curVisitables[0];
+
+    // the new spot will always become visited
+    visited[newSpot.y][newSpot.x] = true;
+
+    Point2D worldCur = w->ToWorldCoords(currentSpot);
+    w->SetNodeColor(w->ToWorldCoords(currentSpot), Color32(1.0f, 0.0f, 0.0f, 1.0f));
+    w->SetNodeColor(w->ToWorldCoords(newSpot), Color32(0.0f, 1.0f, 0.0f, 1.0f));
+
+    // set the wall on the new node
+    if (newSpot.y < currentSpot.y) w->SetNorth(worldCur, false); // if the new position's (stack.back) y is less than the old one, we moved up one (starting at the current to the new)
+    else if (newSpot.x > currentSpot.x) w->SetEast(worldCur, false);  // if the new position's (stack.back) x is more than the old one, we moved right one
+    else if (newSpot.y > currentSpot.y) w->SetSouth(worldCur, false);  // if the new position's (stack.back) y is more than the old one, we moved down one
+    else if (newSpot.x < currentSpot.x) w->SetWest(worldCur, false); // if the new position's (stack.back) x is less than the old one, we moved left one
+    
+    currentSpot = newSpot; // switch for the next loop
+
     return true;
   }
 
-  // if we have already been visited
-  // temp variable if found a new spot to move, don't waste a random slot if only 1 unvisited spot returned
-  Point2D newSpot;
-  if (curVisitables.size() >= 2)
-    newSpot = curVisitables[SeededRandom::next() % curVisitables.size()];
+  // hunting otherwise
+  // use the last spot found when we switched to hunting and name it hunt spot for ease of reading
+  Point2D nextHuntSpot = currentSpot;
+
+  // if the last hunt resulted in no spots found, then end if it wasn't caught before
+  // we don't need to do this actually since we already check before when we calculated the last currentSpot
+  //if (nextHuntSpot.x == INT_MAX) return false;
+
+  // if you were hunting, then choose a path from the visited around it and switch to killing
+  std::vector<Point2D> curVisited = getVisitedNeighbors(w, nextHuntSpot);  // get the visited neighbors around the new spot
+
+  assert(curVisited.size() != 0); // when hunting, you should always be next to a visited spot or the core idea failed
+
+  Point2D newVisited;  // need an extra point to switch easier
+
+  // choose a new visited point
+  if (curVisited.size() >= 2)
+    newVisited = curVisited[SeededRandom::next() % curVisited.size()];
   else
-    newSpot = curVisitables[0];
-  // the new spot will always become visited
-  visited[newSpot.y][newSpot.x] = true;
-  // if you were hunting, then choose a path from the visited around and switch to killing
-  if (isKillingNotHunting) {
-    std::vector<Point2D> curVisited = getVisitedNeighbors(w, newSpot); // get the visited neighbors around the new spot
-    Point2D newUnvisited;                                               // need an extra point to switch easier
-    if (curVisited.size() >= 2)
-      newUnvisited = curVisited[SeededRandom::next() % curVisited.size()];
-    else
-      newUnvisited = curVisited[0];
-    // change the current spot to be the randomly selected visited one in order to allow the wall destroying logic to still work.
-    currentSpot = newUnvisited;
-    // switch to the killing once complete
-    isKillingNotHunting = true;
-  }
+    newVisited = curVisited[0];
 
-  Point2D worldCur = w->ToWorldCoords(currentSpot);
-  w->SetNodeColor(w->ToWorldCoords(currentSpot), Color32(1.0f, 0.0f, 0.0f, 1.0f));
+  // translate the new visited to world coordinates, as it will be the point we create a wall from. 
+  // We could reverse it and have nextHuntSpot be the same, but the copied and pasted logic from the hunt code works with nextHuntSpot being the one checked from 
+  Point2D worldCur = w->ToWorldCoords(newVisited);
+  w->SetNodeColor(w->ToWorldCoords(nextHuntSpot), Color32(1.0f, 0.0f, 0.0f, 1.0f));
 
-  // set the wall on the new node
-  if (newSpot.y < currentSpot.y) w->SetNorth(worldCur, false); // if the new position's (stack.back) y is less than the old one, we moved up one (starting at the current to the new)
-  else if (newSpot.x > currentSpot.x) w->SetEast(worldCur, false);  // if the new position's (stack.back) x is more than the old one, we moved right one
-  else if (newSpot.y > currentSpot.y) w->SetSouth(worldCur, false);  // if the new position's (stack.back) y is more than the old one, we moved down one
-  else if (newSpot.x < currentSpot.x) w->SetWest(worldCur, false); // if the new position's (stack.back) x is less than the old one, we moved left one
-  currentSpot = newSpot; // switch for the next loop
+    // set the wall on the new node
+    if (nextHuntSpot.y < newVisited.y) w->SetNorth(worldCur, false); // if the new position's (nextHuntSpot) y is less than the newVisited, we moved up one (starting at the current to the new)
+    else if (nextHuntSpot.x > newVisited.x) w->SetEast(worldCur, false);  // if the new position's (nextHuntSpot) x is more than the newVisited, we moved right one
+    else if (nextHuntSpot.y > newVisited.y) w->SetSouth(worldCur, false);  // if the new position's (nextHuntSpot) y is more than the newVisited, we moved down one
+    else if (nextHuntSpot.x < newVisited.x) w->SetWest(worldCur, false); // if the new position's (nextHuntSpot) x is less than the newVisited, we moved left one
+
+  // Set the next hunting spot as visited. currentPoint was already set to nextHuntSpot, I just used nextHuntSpot while I thought I had to switch between multiple.
+  visited[nextHuntSpot.y][nextHuntSpot.x] = true;
+
+  // switch to the killing once complete
+  isKillingNotHunting = true;
 
   return true;
 }
@@ -69,28 +110,37 @@ void HuntAndKillExample::Clear(World* world) {
   // [ ][o]             [ ][ ]
   // [ ][ ] instead of  [o][ ]
   // the world coordinates hosts them the opposite way though, so when sending in to color or set a wall use regular coords {x, y} instead of {y, x} for accessing a point
-  for (int i = 0; i < world->GetHeight(); i++) {
-    for (int j = 0; j < world->GetWidth(); j++) {
-      visited[i][j] = false;
+  for (int y = 0; y < world->GetHeight(); y++) {
+    for (int x = 0; x < world->GetWidth(); x++) {
+      visited[y][x] = false;
     }
   }
-  //visited[0][0] = true;
-  //visited[1][0] = true; // so the layout here is [y][x]
-  //world->SetNodeColor(world->ToWorldCoords({0,0}), Color32(0.0f, 1.0f, 0.0f, 1.0f));
-  //world->SetNodeColor(world->ToWorldCoords({1,0}), Color32(0.0f, 1.0f, 0.0f, 1.0f));
-  currentSpot = randomStartPoint(world); // set a new starting point
-  std::cout << "Current Starting spot: " << currentSpot.x << ", " << currentSpot.y << "\n";
-  visited[currentSpot.y][currentSpot.x] = true; // may need to be reversed?
-  //world->SetNodeColor(world->ToWorldCoords(currentSpot), Color32(1.0f, 0.0f, 0.0f, 1.0f));
+
+  // get an actual random spot on the map to start on
+  currentSpot = {
+      SeededRandom::next() % world->GetWidth(), 
+      SeededRandom::next() % world->GetHeight()
+  };
+
+  // the current starting spot is said out loud for my sake of mind
+  //std::cout << "Current Starting spot: " << currentSpot.x << ", " << currentSpot.y << "\n";
+  // we mark the first node as visited, similar to pushing 0,0 in backtracker
+  visited[currentSpot.y][currentSpot.x] = true; 
 }
 
-// this doesn't actually find a random one, just 
-Point2D HuntAndKillExample::randomStartPoint(World* world) {
-  // Todo: improve this if you want
+// this doesn't actually find a random one, just the next available from a sequential line
+Point2D HuntAndKillExample::findNewHuntSpot(World* world) {
+  // Todo: improve this if you want // I did :)
   for (int y = 0; y < world->GetHeight(); y++)
     for (int x = 0; x < world->GetWidth(); x++) {
-      //world->SetNodeColor(world->ToWorldCoords({x, y}), Color32(0.0f, 1.0f, 0.0f, 1.0f)); //this is correct I think
-      if (!visited[y][x]) return {x, y};
+      // instead of checking for visited being unvisited, we will ignore it if it is true and do additional code if true
+      if (visited[y][x]) continue;
+
+      // hunt for unvisited cells that also have a visited cell next to it
+      std::vector<Point2D> nearbyVisited = getVisitedNeighbors(world, {x, y});
+
+      // if we found something in the visited, we hunt here
+      if (nearbyVisited.size() > 0) return {x, y};
     }
   return {INT_MAX, INT_MAX};
 }
