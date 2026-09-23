@@ -42,12 +42,12 @@ void RecursiveBacktrackerExample::Clear(World* world) {
   // get the world size in formal coords
   Point2D size = {world->GetWidth(), world->GetHeight()}; 
   // refresh the entire grid by placing an unvisited spot in every formal coordinate
-  for (int x = 0; x < size.x; x++) {
-    std::map<int, bool> visitedNew;
+  // I adapted the idea of the clear algorithm in the hunt and kill example for this since that was more efficient than what I did before,
+  // I didn't realize that you could just do visited[x][y] instead of inserting every map individually
+  for (int x = 0; x < size.x; x++) { 
     for (int y = 0; y < size.y; y++) {
-      visitedNew.insert({y, false});
+      visited[x][y] = false; 
     }
-    visited.insert({x, visitedNew});
   }
   // push a new stack spot back
   stack.push_back({0, 0});
@@ -83,6 +83,8 @@ bool RecursiveBacktrackerExample::Step(World* w) {
   // first check if further backtracking should happen by checking:
   // 1: if this node is already marked as visited, and
   // 2: checking that no more neightbors to exist to try a different route
+
+  // this checks for continous backtracking
   if (visited[current.x][current.y] && curVisitables.size() == 0) {
     // mark this node as red to show it can still function on backtrack to the debuggers
     w->SetNodeColor(w->ToWorldCoords(current), Color32(0.0f, 0.0f, 0.0f, 1.0f));  // should set to black when continuing to backtrack from a dead end
